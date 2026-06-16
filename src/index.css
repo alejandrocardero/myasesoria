@@ -1,0 +1,190 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Custom design system styling */
+body {
+  font-family: var(--font-sans);
+  background-color: #f8fafc;
+  color: #0f172a;
+  min-height: 100vh;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.dark body,
+body.dark {
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+/* Ensure the app root also transitions */
+#app_root_layout {
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Glassmorphism containers in Light Mode */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(124, 58, 237, 0.12);
+}
+
+.dark .glass-panel {
+  background: rgba(30, 41, 59, 0.85);
+  border-color: rgba(124, 58, 237, 0.2);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(124, 58, 237, 0.08);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(124, 58, 237, 0.22);
+  box-shadow: 0 10px 30px rgba(124, 58, 237, 0.06);
+}
+
+.dark .glass-card {
+  background: rgba(30, 41, 59, 0.7);
+  border-color: rgba(124, 58, 237, 0.15);
+}
+
+.dark .glass-card:hover {
+  background: rgba(30, 41, 59, 0.9);
+  border-color: rgba(124, 58, 237, 0.35);
+  box-shadow: 0 10px 30px rgba(124, 58, 237, 0.15);
+}
+
+/* Active navigation highlighted borders - adjusted for white elements */
+.neon-glow-primary {
+  box-shadow: 0 4px 20px rgba(124, 58, 237, 0.15);
+}
+
+.neon-glow-secondary {
+  box-shadow: 0 4px 20px rgba(2, 132, 199, 0.15);
+}
+
+.neon-glow-error {
+  box-shadow: 0 4px 20px rgba(220, 38, 38, 0.12);
+}
+
+/* Hologram visual text drop shadows - optimized for readable contrast */
+.hologram-text {
+  text-shadow: 0 1px 2px rgba(124, 58, 237, 0.15);
+}
+
+.hologram-text-cyan {
+  text-shadow: 0 1px 2px rgba(2, 132, 199, 0.15);
+}
+
+/* Smooth custom scrollbars */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.5);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.15);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 58, 237, 0.3);
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(30, 41, 59, 0.5);
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.25);
+}
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 58, 237, 0.4);
+}
+
+/* Ring pulse animation for the AI bot */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+}
+
+.ai-avatar-pulse {
+  animation: pulse-ring 4s infinite ease-in-out;
+}
+
+/* Custom margins safe area support */
+.pb-safe {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+/* Animate sliders and elements */
+.animate-slide-horizontal {
+  display: flex;
+  width: 200%;
+  animation: slide-horizontal 12s infinite ease-in-out;
+}
+
+@keyframes slide-horizontal {
+  0%, 45% { transform: translateX(0); }
+  50%, 95% { transform: translateX(-50%); }
+  100% { transform: translateX(0); }
+}
+
+/* Voice button pulse ring */
+.voice-pulse-ring {
+  animation: voice-pulse 2s infinite ease-in-out;
+}
+
+@keyframes voice-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.3); }
+  50% { box-shadow: 0 0 0 12px rgba(124, 58, 237, 0); }
+}
+
+/* Soft bounce for initial hint */
+@keyframes bounce-soft {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.animate-bounce-soft {
+  animation: bounce-soft 2s ease-in-out 1;
+}
+
+/* Slide up animation for modals */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.25s ease-out;
+}
+
+/* Text highlight on read-aloud */
+.speak-highlight {
+  background: linear-gradient(120deg, rgba(124, 58, 237, 0.15) 0%, rgba(2, 132, 199, 0.15) 100%);
+  border-radius: 2px;
+  transition: background 0.1s ease;
+}

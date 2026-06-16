@@ -1,0 +1,5 @@
+{
+  "name": "MyAsesorIA Hub",
+  "description": "Suite de gestión integral para microempresas con inteligencia artificial y control por voz. Contabilidad, asesoría jurídica colombiana, inventario, marketing automatizado y asistente activado por voz (Hola Jarvis / 2 aplausos).",
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
