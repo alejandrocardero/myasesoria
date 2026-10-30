@@ -81,6 +81,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return j.csrfToken;
   };
 
+  const parseErrorResponse = async (res: Response, fallback: string) => {
+    try {
+      const text = await res.text();
+      const data = JSON.parse(text);
+      return data.error || fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
   const login = async (email: string, password: string) => {
     const csrf = await getCsrf();
     const res = await fetch('/api/auth/login', {
@@ -90,8 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ email, password })
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Login fallido');
+      throw new Error(await parseErrorResponse(res, 'Login fallido'));
     }
     const data = await res.json();
     const user = data.user;
@@ -109,8 +118,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify(data)
     });
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Registro fallido');
+      throw new Error(await parseErrorResponse(res, 'Registro fallido'));
     }
     const json = await res.json();
     const newUser = json.user;
