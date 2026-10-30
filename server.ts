@@ -141,12 +141,14 @@ async function startServer() {
   });
 
   // Security middlewares
-  app.use(helmet({
-    contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
-      useDefaults: true,
-    } : false,
-    crossOriginEmbedderPolicy: false,
-  }));
+  if (process.env.NODE_ENV === 'production') {
+    app.use(helmet({
+      contentSecurityPolicy: {
+        useDefaults: true,
+      },
+      crossOriginEmbedderPolicy: false,
+    }));
+  }
   app.use(cors({
     origin: process.env.NODE_ENV === 'production' ? ['https://mydomain.com'] : ['http://localhost:3000','http://localhost:5173'],
     credentials: true,
