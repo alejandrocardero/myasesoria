@@ -130,12 +130,7 @@ async function startServer() {
   }));
 
   const csrfProtection = csurf({ cookie: { httpOnly: true, sameSite: 'strict' } });
-  app.use((req, res, next) => {
-    if (['POST','PUT','PATCH','DELETE'].includes(req.method)) {
-      return csrfProtection(req, res, next);
-    }
-    next();
-  });
+  app.use(csrfProtection);
   app.get('/api/csrf-token', (req: any, res: any) => {
     res.json({ csrfToken: req.csrfToken() });
   });
