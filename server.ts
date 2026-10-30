@@ -152,7 +152,7 @@ async function startServer() {
     credentials: true,
   }));
   const globalLimiter = rateLimit({ windowMs: 15*60*1000, max: 100 });
-  app.use(globalLimiter);
+  app.use('/api', globalLimiter);
 
   const aiLimiter = rateLimit({ windowMs: 15*60*1000, max: 5 });
   app.use('/api/test-ai', aiLimiter);
