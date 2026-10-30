@@ -107,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
     localStorage.setItem('jarvis_user_name', user.name);
     setState({ user, isAuthenticated: true, isLoading: false });
+    window.location.assign('/');
   };
 
   const register = async (data: RegisterData) => {
@@ -125,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
     localStorage.setItem('jarvis_user_name', newUser.name);
     setState({ user: newUser, isAuthenticated: true, isLoading: false });
+    window.location.assign('/');
   };
 
   const logout = async () => {
