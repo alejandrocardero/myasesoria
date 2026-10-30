@@ -3,6 +3,26 @@ import { User, AuthState } from '../types';
 
 const STORAGE_KEY = 'myasesoria_user';
 const CRED_KEY = 'myasesoria_cred';
+const USER_DATA_PREFIX = 'myasesoria_';
+const VOICE_CONFIG_PREFIX = 'voice_config_';
+
+function clearAllUserData(excludeUid?: string) {
+  // Borrar todas las claves de datos de usuario y voz, excepto las del usuario actual si se indica
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    if (key.startsWith(USER_DATA_PREFIX) && key !== STORAGE_KEY && key !== CRED_KEY) {
+      if (excludeUid && key.includes(`_${excludeUid}_`)) continue;
+      keysToRemove.push(key);
+    }
+    if (key.startsWith(VOICE_CONFIG_PREFIX)) {
+      if (excludeUid && key.includes(`_${excludeUid}`)) continue;
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach(k => localStorage.removeItem(k));
+}
 
 function safeBase64(str: string): string {
   try {
@@ -55,56 +75,58 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = async (email: string, password: string) => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    const credStored = localStorage.getItem(CRED_KEY);
-    
-    if (!stored || !credStored) {
-      throw new Error('No hay usuario registrado. Crea una cuenta primero.');
-    }
-    
-    const cred = JSON.parse(credStored) as StoredCredential;
-    if (cred.email !== email) {
-      throw new Error('Correo no encontrado');
-    }
+  const getCsrf = async () => {
+    const r = await fetch('/api/csrf-token', { credentials: 'include' });
+    const j = await r.json();
+    return j.csrfToken;
+  };
 
-    const inputHash = safeBase64(password);
-    if (cred.passwordHash !== inputHash) {
-      throw new Error('Contraseña incorrecta');
+  const login = async (email: string, password: string) => {
+    const csrf = await getCsrf();
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'csrf-token': csrf },
+      credentials: 'include',
+      body: JSON.stringify({ email, password })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Login fallido');
     }
-    
-    const user = JSON.parse(stored) as User;
+    const data = await res.json();
+    const user = data.user;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+    localStorage.setItem('jarvis_user_name', user.name);
     setState({ user, isAuthenticated: true, isLoading: false });
   };
 
   const register = async (data: RegisterData) => {
-    const existing = localStorage.getItem(STORAGE_KEY);
-    if (existing) {
-      throw new Error('Ya existe un usuario registrado. Inicia sesión.');
+    const csrf = await getCsrf();
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'csrf-token': csrf },
+      credentials: 'include',
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Registro fallido');
     }
-
-    const newUser: User = {
-      id: 'user_' + Date.now(),
-      name: data.name,
-      email: data.email,
-      country: data.country,
-      business: data.business,
-      createdAt: new Date().toISOString(),
-    };
-
-    const cred: StoredCredential = {
-      email: data.email,
-      passwordHash: safeBase64(data.password),
-    };
-
+    const json = await res.json();
+    const newUser = json.user;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser));
-    localStorage.setItem(CRED_KEY, JSON.stringify(cred));
+    localStorage.setItem('jarvis_user_name', newUser.name);
     setState({ user: newUser, isAuthenticated: true, isLoading: false });
   };
 
-  const logout = () => {
+  const logout = async () => {
+    const uid = state.user?.id;
+    const csrf = await getCsrf();
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'include', headers: { 'csrf-token': csrf } }).catch(()=>{});
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(CRED_KEY);
+    localStorage.removeItem('jarvis_user_name');
+    clearAllUserData(uid);
     setState({ user: null, isAuthenticated: false, isLoading: false });
   };
 
@@ -112,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!state.user) return;
     const updated = { ...state.user, ...data };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    if (data.name) localStorage.setItem('jarvis_user_name', data.name);
     setState(prev => ({ ...prev, user: updated }));
   };
 
