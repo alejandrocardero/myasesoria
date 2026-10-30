@@ -10,11 +10,12 @@ Suite de gestión integral para microempresas (MiPyMEs) con inteligencia artific
 
 ## Características
 
-- **🤖 Abogado Amigo** — Chat legal con IA especializado en legislación colombiana (Gemini / Ollama)
+- **🤖 Abogado Amigo** — Chat legal con IA especializado en legislación colombiana (Hugging Face / Ollama)
 - **💰 Contador de Bolsillo** — Gestión de transacciones, métricas financieras y flujo de caja
 - **📦 Almacén Smart** — Control de inventario con alertas de stock crítico y predicciones IA
 - **📢 Marketing Fácil** — Generación de copias publicitarias con IA y planificador de campañas
 - **🎙️ Control por Voz** — Activa con "Hola Jarvis" o **2 aplausos**. Navega, consulta y escribe con comandos de voz
+- **🧠 Motor de IA seleccionable** — Elige entre Hugging Face (cloud, gratis) u Ollama (local, privado)
 - **🌙 Tema oscuro/claro** — Alternancia con persistencia de preferencia
 - **🔐 Sistema de autenticación** — Registro con validación de correo y fortaleza de contraseña
 - **💾 Datos por usuario** — Cada cuenta tiene sus propios datos almacenados en el navegador
@@ -23,10 +24,11 @@ Suite de gestión integral para microempresas (MiPyMEs) con inteligencia artific
 ## Requisitos
 
 - **Node.js** 18+ (recomendado 20+)
-- **Ollama** (recomendado) para IA local, o **Gemini API Key** para IA cloud
+- **Ollama** (opcional) para IA local, o **Hugging Face API Key** para IA cloud gratis
+- **Groq API Key** para servicios de voz (STT/TTS)
 - **Navegador**: Chrome, Edge u Opera (para funcionalidad de voz completa)
 
-> ⚠️ **Compatibilidad de voz**: La activación por "Hola Jarvis" y 2 aplausos requiere la Web Speech API y Web Audio API, disponibles en Chrome, Edge y Opera. Firefox y Safari tienen soporte parcial.
+> ⚠️ **Compatibilidad de voz**: La activación por "Hola Jarvis" y 2 aplausos requiere Web Audio API. La transcripción y síntesis de voz usan Groq (funciona en todos los navegadores).
 
 ## Instalación
 
@@ -50,7 +52,23 @@ Abrir [http://localhost:3000](http://localhost:3000)
 
 ## Configuración de IA
 
-### Opción A: Ollama (local — recomendado)
+Puedes cambiar el proveedor de IA desde el **Motor de IA** en el sidebar izquierdo, o configurarlo manualmente:
+
+### Opción A: Hugging Face (cloud — gratis)
+```env
+AI_PROVIDER="hf"
+HF_API_KEY="hf_tu_token"
+```
+Crear token en: https://huggingface.co/settings/tokens/new?ownUserPermissions=inference.serverless.write&tokenType=fineGrained
+
+Modelos SLM disponibles (2B-8B parámetros):
+- Qwen3 8B, 4B, 1.7B
+- Llama 3.1 8B, Llama 3.2 3B
+- Gemma 2 2B
+- Phi-3 Mini (3.8B)
+- Mistral 7B, Zephyr 7B, TinyLlama 1.1B
+
+### Opción B: Ollama (local — privado)
 ```env
 AI_PROVIDER="ollama"
 OLLAMA_HOST="http://localhost:11434"
@@ -61,11 +79,11 @@ Descargar e instalar Ollama desde [ollama.com/download](https://ollama.com/downl
 ollama pull llama3
 ```
 
-### Opción B: Google Gemini
+### Servicios de Voz (STT/TTS)
 ```env
-AI_PROVIDER="gemini"
-GEMINI_API_KEY="tu_api_key"
+GROQ_API_KEY="gsk_tu_api_key"
 ```
+Obtener en: https://console.groq.com/keys
 
 ## Uso por Voz
 
@@ -97,4 +115,23 @@ Puedes personalizar la voz, idioma y palabra de activación desde el menú de co
 
 ## Stack
 
-React 19 · TypeScript · Vite · Tailwind CSS 4 · Express · Google Gemini · Ollama · Web Speech API · Web Audio API · Lucide Icons
+React 19 · TypeScript · Vite · Tailwind CSS 4 · Express · Hugging Face Inference · Ollama · Groq (STT/TTS) · Web Audio API · Lucide Icons
+
+## Seguridad
+
+Hardening aplicado en el módulo SaaS:
+
+- **Autenticación server-side**: `express-session` con cookies `httpOnly`, `Secure` en prod, `SameSite=strict`, maxAge 24h. Passwords hasheadas con `bcryptjs` 12 rounds.
+- **CSRF protection**: `csurf` con cookie httpOnly; endpoint `/api/csrf-token`; frontend envía header `csrf-token`.
+- **Password reset seguro**: tokens aleatorios con expiración 1h, borrado tras uso.
+- **Validación y sanitización**: `express-validator` en todas las rutas de auth y AI; `xss-clean` middleware global.
+- **Headers y CORS**: `helmet`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`; CORS restringido a orígenes permitidos con credentials.
+- **Rate limiting**: global 100/15min, AI routes 5/15min.
+- **Upload seguro**: `multer` con límite 5 MB y whitelist MIME `image/jpeg/png/webp`, `application/pdf`.
+- **Protección de archivos**: bloqueo de `/.env`, `/server.ts`, `/data`, `/.git`.
+- **Dependencias**: `npm audit fix` aplicado; `.env.example` documentado, `.gitignore` protege secretos.
+- **Sin exposición de keys**: `HF_API_KEY`, `OLLAMA_*`, `SESSION_SECRET` solo en servidor.
+
+Variables requeridas: `SESSION_SECRET`, `HF_API_KEY`, `OLLAMA_HOST`, `OLLAMA_MODEL`, `NODE_ENV`.
+
+Para producción usar HTTPS, rotar `SESSION_SECRET`, y revisar logs de actividad sospechosa.
