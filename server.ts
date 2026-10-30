@@ -142,9 +142,9 @@ async function startServer() {
 
   // Security middlewares
   app.use(helmet({
-    contentSecurityPolicy: {
+    contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
       useDefaults: true,
-    },
+    } : false,
     crossOriginEmbedderPolicy: false,
   }));
   app.use(cors({
