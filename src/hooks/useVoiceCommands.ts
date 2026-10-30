@@ -38,7 +38,16 @@ export function useVoiceCommands(actions: VoiceCommandActions) {
     if (lower.includes('ve a') || lower.includes('navega a') || lower.includes('abre') || lower.includes('ir a')) {
       for (const [tab, keywords] of Object.entries(tabKeywords)) {
         if (keywords.some(kw => lower.includes(kw))) {
+          const routes: Record<string, string> = {
+            'core': '/',
+            'finance': '/finanzas',
+            'legal': '/legal',
+            'stock': '/almacen',
+            'marketing': '/marketing'
+          };
+          const route = routes[tab] || '/';
           setActiveTab(tab);
+          window.location.assign(route);
           await speak(`Abriendo módulo ${keywords[0]}`);
           return;
         }
@@ -93,7 +102,7 @@ export function useVoiceCommands(actions: VoiceCommandActions) {
       return;
     }
 
-    if (lower.includes('lee leyes') || lower.includes('lee') && lower.includes('legal')) {
+    if (lower.includes('lee leyes') || (lower.includes('lee') && lower.includes('legal'))) {
       if (chatHistory && chatHistory.length > 0) {
         const lastLegal = [...chatHistory].reverse().find(m => m.role === 'model' && m.reference);
         if (lastLegal) {
@@ -109,8 +118,50 @@ export function useVoiceCommands(actions: VoiceCommandActions) {
       return;
     }
 
+    if (lower.includes('lee la página') || lower.includes('lee este módulo') || lower.includes('lee la pantalla')) {
+      const text = document.body?.innerText?.slice(0, 2000) || '';
+      if (text) {
+        await speak('Leyendo contenido de la página: ' + text.slice(0, 500));
+      } else {
+        await speak('No hay contenido visible para leer.');
+      }
+      return;
+    }
+
+    if (lower.includes('analiza el gráfico') || lower.includes('qué muestra el gráfico') || lower.includes('describe el gráfico')) {
+      if (transactions && stock && campaigns) {
+        const ventas = transactions.filter(t => t.type === 'venta').length;
+        const gastos = transactions.filter(t => t.type === 'gasto').length;
+        const totalProductos = stock.length;
+        const totalCampañas = campaigns.length;
+        const resumen = `Resumen general: ${ventas} ventas, ${gastos} gastos, ${totalProductos} productos en inventario y ${totalCampañas} campañas activas.`;
+        await speak(resumen);
+      } else if (transactions) {
+        const ventas = transactions.filter(t => t.type === 'venta').length;
+        await speak(`En finanzas hay ${ventas} ventas registradas.`);
+      } else if (stock) {
+        await speak(`En almacén hay ${stock.length} productos registrados.`);
+      } else if (campaigns) {
+        await speak(`En marketing hay ${campaigns.length} campañas registradas.`);
+      } else {
+        await speak('No hay datos suficientes para analizar gráficos.');
+      }
+      return;
+    }
+
+    if (lower.includes('escribe a abogado') || lower.includes('redacta para abogado amigo') || lower.includes('escribe en abogado amigo')) {
+      const msg = command.replace(/^(escribe a abogado|redacta para abogado amigo|escribe en abogado amigo)\s+/i, '').trim();
+      if (msg) {
+        window.dispatchEvent(new CustomEvent('voice:abogado-input', { detail: { text: msg } }));
+        await speak(`Texto preparado para Abogado Amigo: ${msg}`);
+      } else {
+        await speak('Dime qué texto quieres escribir para Abogado Amigo.');
+      }
+      return;
+    }
+
     if (lower.includes('qué puedes hacer') || lower.includes('ayuda') || lower.includes('comandos')) {
-      const help = 'Puedes decir: "Ve a finanzas", "Resume ventas", "Resume stock", "Escribe [mensaje]", "Lee leyes", "Abre marketing", "Silencio". También puedes decir "Hola Jarvis" para activarme.';
+      const help = 'Puedes decir: "Ve a finanzas", "Resume ventas", "Resume stock", "Escribe [mensaje]", "Lee leyes", "Abre marketing", "Lee la página", "Analiza el gráfico", "Escribe a abogado amigo [texto]", "Silencio". También puedes decir "Hola Jarvis" para activarme.';
       await speak(help);
       return;
     }
