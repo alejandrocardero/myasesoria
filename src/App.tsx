@@ -12,6 +12,7 @@ import { Transaction, StockProduct, Campaign, ChatMessage, DigitalFile, ClientCo
 import HomeLayout from './components/HomeLayout';
 import ModuleLayout from './components/ModuleLayout';
 import AuthPage from './components/AuthPage';
+import LandingPage from './components/LandingPage';
 import CoreDashboard from './components/CoreDashboard';
 import VoiceButton from './components/VoiceButton';
 import { Scale, DollarSign, Package, Megaphone, LayoutDashboard } from 'lucide-react';
@@ -84,7 +85,7 @@ function LegalModule({ children }: { children: React.ReactNode }) {
     <ModuleLayout
       moduleName="Abogado Amigo"
       moduleIcon={<Scale size={20} />}
-      moduleColor="#7c3aed"
+      moduleColor="#4f46e5"
       showSidebar
       sidebarContent={<ModuleSidebar activeModule="legal" />}
     >
@@ -98,7 +99,7 @@ function FinanceModule({ children }: { children: React.ReactNode }) {
     <ModuleLayout
       moduleName="Contador de Bolsillo"
       moduleIcon={<DollarSign size={20} />}
-      moduleColor="#059669"
+      moduleColor="#047857"
       showSidebar
       sidebarContent={<ModuleSidebar activeModule="finance" />}
     >
@@ -112,7 +113,7 @@ function StockModule({ children }: { children: React.ReactNode }) {
     <ModuleLayout
       moduleName="Almacén Smart"
       moduleIcon={<Package size={20} />}
-      moduleColor="#ea580c"
+      moduleColor="#b45309"
       showSidebar
       sidebarContent={<ModuleSidebar activeModule="stock" />}
     >
@@ -126,7 +127,7 @@ function MarketingModule({ children }: { children: React.ReactNode }) {
     <ModuleLayout
       moduleName="Marketing Fácil"
       moduleIcon={<Megaphone size={20} />}
-      moduleColor="#dc2626"
+      moduleColor="#be123c"
       showSidebar
       sidebarContent={<ModuleSidebar activeModule="marketing" />}
     >
@@ -253,14 +254,26 @@ function AppContent() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#f1f5f9] dark:bg-slate-900 flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-[#7c3aed]/30 border-t-[#7c3aed] rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-slate-100 dark:bg-slate-950 flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-primary-600/25 border-t-primary-600 rounded-full animate-spin"></div>
       </div>
     );
   }
 
   if (!isAuthenticated) {
-    return <AuthPage />;
+    return (
+      <BrowserRouter>
+        <Routes>
+          {/* Public marketing page — reachable without a session */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/landing" element={<LandingPage />} />
+          <Route path="/auth" element={<AuthPage />} />
+
+          {/* Everything else falls back to the access screen */}
+          <Route path="*" element={<AuthPage />} />
+        </Routes>
+      </BrowserRouter>
+    );
   }
 
   return (
@@ -269,6 +282,7 @@ function AppContent() {
         <Routes>
           {/* Public routes */}
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/landing" element={<LandingPage />} />
           
           {/* Protected routes - all require auth */}
           <Route element={<Outlet />}>
@@ -342,6 +356,9 @@ function AppContent() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>
+
+      {/* Floating voice assistant — mounted once, draggable, above every page */}
+      <VoiceButton />
     </BrowserRouter>
   );
 }
