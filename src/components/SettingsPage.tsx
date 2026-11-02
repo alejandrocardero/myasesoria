@@ -64,9 +64,11 @@ export default function SettingsPage() {
     setTesting(true);
     setTestResult(null);
     try {
+      const csrfRes = await fetch('/api/csrf-token');
+      const { csrfToken } = await csrfRes.json();
       const res = await fetch('/api/test-ai', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
         body: JSON.stringify({ provider: aiProvider, model: aiProvider === 'hf' ? selectedHfModel : undefined }),
       });
       const data = await res.json();
