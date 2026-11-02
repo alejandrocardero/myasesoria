@@ -406,7 +406,7 @@ async function startServer() {
     res.json([
       { id: 'Qwen/Qwen3-8B:fastest', name: 'Qwen3 8B', desc: 'Rápido, excelente español y razonamiento', size: '8B' },
       { id: 'meta-llama/Llama-3.1-8B-Instruct:fastest', name: 'Llama 3.1 8B', desc: 'Estándar confiable, buen seguimiento instrucciones', size: '8B' },
-      { id: 'microsoft/Phi-3.5-mini-instruct:fastest', name: 'Phi-3.5 Mini', desc: 'Ultra-rápido 3.8B, calidad sorprendente', size: '3.8B' },
+      { id: 'microsoft/Phi-3-mini-4k-instruct:fastest', name: 'Phi-3 Mini', desc: 'Ultra-rápido 3.8B, calidad sorprendente', size: '3.8B' },
       { id: 'google/gemma-2-2b-it:fastest', name: 'Gemma 2 2B', desc: 'Más ligero 2B, veloz, buen español básico', size: '2B' },
       { id: 'HuggingFaceH4/zephyr-7b-beta:fastest', name: 'Zephyr 7B Beta', desc: 'Optimizado chat, conversacional natural', size: '7B' },
     ]);
