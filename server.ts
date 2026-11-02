@@ -401,14 +401,26 @@ async function startServer() {
     }
   });
 
-  // --- API ROUTE: List available HF models (SLM: 2B-8B) - 5 modelos gratuitos verificados ---
+  // --- API ROUTE: List available HF models (SLM: 2B-8B) - Requieren créditos HF Inference Providers ---
   app.get("/api/hf-models", (_req, res) => {
     res.json([
-      { id: 'alejandrocardero/LFM3-1.7B-bucket', name: 'LFM3 1.7B', desc: 'Modelo local del proyecto, 1.7B', size: '1.7B' },
-      { id: 'Qwen/Qwen3-8B', name: 'Qwen3 8B', desc: 'Rápido, excelente español y razonamiento', size: '8B' },
-      { id: 'meta-llama/Llama-3.1-8B-Instruct', name: 'Llama 3.1 8B', desc: 'Estándar confiable, buen seguimiento instrucciones', size: '8B' },
-      { id: 'openai/gpt-oss-20b', name: 'GPT-OSS 20B', desc: 'OpenAI open source, buen balance calidad/velocidad', size: '20B' },
-      { id: 'ibm-granite/granite-4.2-3b', name: 'Granite 4.2 3B', desc: 'Ligero, rápido para tareas cotidianas', size: '3B' },
+      { id: 'Qwen/Qwen3-8B', name: 'Qwen3 8B', desc: 'Rápido, excelente español y razonamiento (requiere créditos HF)', size: '8B' },
+      { id: 'meta-llama/Llama-3.1-8B-Instruct', name: 'Llama 3.1 8B', desc: 'Estándar confiable, buen seguimiento instrucciones (requiere créditos HF)', size: '8B' },
+      { id: 'openai/gpt-oss-20b', name: 'GPT-OSS 20B', desc: 'OpenAI open source, buen balance calidad/velocidad (requiere créditos HF)', size: '20B' },
+      { id: 'google/gemma-3-4b-it', name: 'Gemma 3 4B', desc: 'Ligero, buen español básico (requiere créditos HF)', size: '4B' },
+      { id: 'ibm-granite/granite-4.2-3b', name: 'Granite 4.2 3B', desc: 'Ligero, rápido para tareas cotidianas (requiere créditos HF)', size: '3B' },
+    ]);
+  });
+
+  // --- API ROUTE: List recommended Ollama models (gratuitos, locales) ---
+  app.get("/api/ollama-models", (_req, res) => {
+    res.json([
+      { id: 'llama3.1:8b', name: 'Llama 3.1 8B', desc: 'Excelente español, razonamiento, gratis y local', size: '8B' },
+      { id: 'qwen2.5:7b', name: 'Qwen 2.5 7B', desc: 'Muy buen español, rápido, ideal para negocios', size: '7B' },
+      { id: 'gemma2:2b', name: 'Gemma 2 2B', desc: 'Ultra ligero, rápido, buen español básico', size: '2B' },
+      { id: 'phi3:mini', name: 'Phi-3 Mini 3.8B', desc: 'Compacto, sorprendentemente capaz', size: '3.8B' },
+      { id: 'mistral:7b', name: 'Mistral 7B', desc: 'Confiable, buen seguimiento instrucciones', size: '7B' },
+      { id: 'llama3.2:3b', name: 'Llama 3.2 3B', desc: 'Nuevo, eficiente, buen español', size: '3B' },
     ]);
   });
 

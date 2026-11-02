@@ -34,7 +34,8 @@ export default function SettingsPage() {
   // Local state
   const [expanded, setExpanded] = useState(false);
   const [hfModels, setHfModels] = useState<AIModel[]>([]);
-  const [selectedHfModel, setSelectedHfModel] = useState(aiModel || 'Qwen/Qwen3-8B:fastest');
+  const [ollamaModels, setOllamaModels] = useState<AIModel[]>([]);
+  const [selectedModel, setSelectedModel] = useState(aiModel || 'llama3.1:8b');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
   const [loadingModels, setLoadingModels] = useState(false);
@@ -55,10 +56,21 @@ export default function SettingsPage() {
     }
   }, [aiProvider, hfModels.length]);
 
+  // Load Ollama models when Ollama is selected
+  useEffect(() => {
+    if (aiProvider === 'ollama' && ollamaModels.length === 0) {
+      setLoadingModels(true);
+      fetch('/api/ollama-models')
+        .then(r => r.json())
+        .then(data => { setOllamaModels(data); setLoadingModels(false); })
+        .catch(() => setLoadingModels(false));
+    }
+  }, [aiProvider, ollamaModels.length]);
+
   // Sync selected model when aiModel changes
   useEffect(() => {
-    setSelectedHfModel(aiModel || 'Qwen/Qwen3-8B:fastest');
-  }, [aiModel]);
+    setSelectedModel(aiModel || (aiProvider === 'hf' ? 'Qwen/Qwen3-8B' : 'llama3.1:8b'));
+  }, [aiModel, aiProvider]);
 
   const handleTest = async () => {
     setTesting(true);
@@ -69,7 +81,7 @@ export default function SettingsPage() {
       const res = await fetch('/api/test-ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
-        body: JSON.stringify({ provider: aiProvider, model: aiProvider === 'hf' ? selectedHfModel : undefined }),
+        body: JSON.stringify({ provider: aiProvider, model: selectedModel }),
       });
       const data = await res.json();
       if (data.ok) {
@@ -92,12 +104,14 @@ export default function SettingsPage() {
     setTestResult(null);
     setAiProvider(provId);
     if (provId === 'hf') {
-      setAiModel(selectedHfModel);
+      setAiModel(selectedModel);
+    } else if (provId === 'ollama') {
+      setAiModel(selectedModel);
     }
   };
 
   const handleSelectModel = (modelId: string) => {
-    setSelectedHfModel(modelId);
+    setSelectedModel(modelId);
     setTestResult(null);
     setAiModel(modelId);
   };
@@ -184,7 +198,7 @@ export default function SettingsPage() {
                         key={m.id}
                         onClick={() => handleSelectModel(m.id)}
                         className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
-                          selectedHfModel === m.id
+                          selectedModel === m.id
                             ? 'bg-[#FFD21E]/10 border-[#FFD21E]/30'
                             : 'hover:bg-slate-50 dark:hover:bg-slate-700/50 border-transparent'
                         }`}
@@ -198,7 +212,7 @@ export default function SettingsPage() {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-xs text-slate-400 font-mono bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">{m.id.split(':')[0].split('/').pop()}</span>
-                          {selectedHfModel === m.id && <Check size={18} className="text-[#FFD21E]" />}
+                          {selectedModel === m.id && <Check size={18} className="text-[#FFD21E]" />}
                         </div>
                       </button>
                     ))}
@@ -229,20 +243,63 @@ export default function SettingsPage() {
             {/* Ollama Config */}
             {aiProvider === 'ollama' && (
               <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Configuración Ollama</label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Host</label>
-                    <Input value="http://localhost:11434" readOnly className="bg-slate-50 dark:bg-slate-700" />
+                <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Modelo Ollama (Local)</label>
+                
+                {loadingModels ? (
+                  <div className="flex items-center gap-3 py-4 text-slate-500">
+                    <Loader2 size={20} className="animate-spin" /> Cargando modelos locales...
                   </div>
-                  <div>
-                    <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1">Modelo actual</label>
-                    <Input value="gpt-oss:20b-cloud" readOnly className="bg-slate-50 dark:bg-slate-700" />
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {ollamaModels.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => handleSelectModel(m.id)}
+                        className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all ${
+                          selectedModel === m.id
+                            ? 'bg-primary-50 dark:bg-primary-900/20 border-primary-200 dark:border-primary-800'
+                            : 'hover:bg-slate-50 dark:hover:bg-slate-700/50 border-transparent'
+                        }`}
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-900 dark:text-slate-100">{m.name}</span>
+                            <Badge variant="default" size="sm">{m.size}</Badge>
+                          </div>
+                          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{m.desc}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-slate-400 font-mono bg-slate-100 dark:bg-slate-700 px-2 py-1 rounded">{m.id}</span>
+                          {selectedModel === m.id && <Check size={18} className="text-primary-600" />}
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                </div>
-                <p className="text-sm text-slate-500 dark:text-slate-400">
+                )}
+
+                <p className="text-sm text-slate-500 dark:text-slate-400 pt-2">
                   Asegúrate de que Ollama esté corriendo localmente. <code className="bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-xs">ollama serve</code>
+                  <br />Para instalar un modelo: <code className="bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-xs">ollama pull llama3.1:8b</code>
                 </p>
+
+                {/* Test Connection */}
+                <div className="flex items-center gap-3 pt-4 border-t border-slate-200 dark:border-slate-700">
+                  <Button
+                    size="md"
+                    onClick={handleTest}
+                    disabled={testing}
+                    variant="primary"
+                   
+                  >
+                    {testing ? <Loader2 size={18} className="animate-spin" /> : <Plug size={18} />}
+                    {testing ? 'Probando...' : 'Test Conexión'}
+                  </Button>
+                  {testResult && (
+                    <Badge variant={testResult.ok ? 'success' : 'error'} size="md" className="flex-1 justify-center">
+                      {testResult.ok ? <><Check size={14} className="mr-1" /> {testResult.msg}</> : <span>✗ {testResult.msg}</span>}
+                    </Badge>
+                  )}
+                </div>
               </div>
             )}
           </Card>
