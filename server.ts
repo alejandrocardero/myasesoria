@@ -404,11 +404,11 @@ async function startServer() {
   // --- API ROUTE: List available HF models (SLM: 2B-8B) - 5 modelos gratuitos verificados ---
   app.get("/api/hf-models", (_req, res) => {
     res.json([
-      { id: 'Qwen/Qwen3-8B:fastest', name: 'Qwen3 8B', desc: 'Rápido, excelente español y razonamiento', size: '8B' },
-      { id: 'meta-llama/Llama-3.1-8B-Instruct:fastest', name: 'Llama 3.1 8B', desc: 'Estándar confiable, buen seguimiento instrucciones', size: '8B' },
-      { id: 'microsoft/Phi-3-mini-4k-instruct:fastest', name: 'Phi-3 Mini', desc: 'Ultra-rápido 3.8B, calidad sorprendente', size: '3.8B' },
-      { id: 'google/gemma-2-2b-it:fastest', name: 'Gemma 2 2B', desc: 'Más ligero 2B, veloz, buen español básico', size: '2B' },
-      { id: 'HuggingFaceH4/zephyr-7b-beta:fastest', name: 'Zephyr 7B Beta', desc: 'Optimizado chat, conversacional natural', size: '7B' },
+      { id: 'Qwen/Qwen3-8B', name: 'Qwen3 8B', desc: 'Rápido, excelente español y razonamiento', size: '8B' },
+      { id: 'meta-llama/Llama-3.1-8B-Instruct', name: 'Llama 3.1 8B', desc: 'Estándar confiable, buen seguimiento instrucciones', size: '8B' },
+      { id: 'openai/gpt-oss-20b', name: 'GPT-OSS 20B', desc: 'OpenAI open source, buen balance calidad/velocidad', size: '20B' },
+      { id: 'ibm-granite/granite-4.2-3b', name: 'Granite 4.2 3B', desc: 'Ligero, rápido para tareas cotidianas', size: '3B' },
+      { id: 'google/gemma-3-4b-it', name: 'Gemma 3 4B', desc: 'Ligero, buen español básico', size: '4B' },
     ]);
   });
 
