@@ -441,7 +441,13 @@ async function startServer() {
         });
       }
 
+      const sessionUserId = (req as any).session?.userId;
+      const user: any = sessionUserId ? Array.from(users.values()).find(u => u.id === sessionUserId) : undefined;
+      const userContext = `Contexto del usuario: nombre=${user?.name || 'Usuario'}, genero=${user?.gender || 'no especificado'}, pais=${user?.country || 'no especificado'}, negocio=${user?.business || 'no especificado'}. Usa el trato y contexto apropiados.`;
+
       const systemPrompt = `Eres "Abogado Amigo", el asistente virtual jurídico de MyAsesorIA.
+${userContext}
+
 Tu conocimiento se limita exclusivamente a:
 - Los documentos legales, leyes, decretos y normativa almacenados en la app para Cuba, República Dominicana y México.
 - Los documentos que el usuario haya subido o generado dentro de la app.
