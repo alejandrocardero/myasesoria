@@ -412,15 +412,15 @@ async function startServer() {
     ]);
   });
 
-  // --- API ROUTE: List recommended Ollama models (gratuitos, locales) ---
+  // --- API ROUTE: List Ollama models (free local + verified free cloud) ---
   app.get("/api/ollama-models", (_req, res) => {
     res.json([
+      { id: 'gpt-oss:120b-cloud', name: 'GPT OSS 120B (Cloud)', desc: 'Funcionando (200), gratis cloud', size: '120B' },
+      { id: 'gpt-oss:20b-cloud', name: 'GPT OSS 20B (Cloud)', desc: 'Funcionando (200), gratis cloud', size: '20B' },
       { id: 'llama3.1:8b', name: 'Llama 3.1 8B', desc: 'Excelente español, razonamiento, gratis y local', size: '8B' },
       { id: 'qwen2.5:7b', name: 'Qwen 2.5 7B', desc: 'Muy buen español, rápido, ideal para negocios', size: '7B' },
       { id: 'gemma2:2b', name: 'Gemma 2 2B', desc: 'Ultra ligero, rápido, buen español básico', size: '2B' },
-      { id: 'phi3:mini', name: 'Phi-3 Mini 3.8B', desc: 'Compacto, sorprendentemente capaz', size: '3.8B' },
       { id: 'mistral:7b', name: 'Mistral 7B', desc: 'Confiable, buen seguimiento instrucciones', size: '7B' },
-      { id: 'llama3.2:3b', name: 'Llama 3.2 3B', desc: 'Nuevo, eficiente, buen español', size: '3B' },
     ]);
   });
 
