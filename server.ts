@@ -160,7 +160,7 @@ async function startServer() {
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-    res.setHeader('Permissions-Policy', 'geolocation=(), microphone=()');
+    res.setHeader('Permissions-Policy', 'geolocation=(), camera=(), microphone=(self)');
     next();
   });
 
