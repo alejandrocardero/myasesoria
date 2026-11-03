@@ -15,6 +15,7 @@ interface VoiceContextType {
   stopSpeaking: () => void;
   setOnCommand: (fn: ((command: string) => void) | null) => void;
   markInteracted: () => void;
+  getGreeting: () => string;
   supported: boolean;
   clapSupported: boolean;
   isClapListening: boolean;
@@ -73,6 +74,7 @@ export function VoiceProvider({ children, userId, userName }: { children: React.
   const restartTimeoutRef = useRef<number | null>(null);
   const stopSpeakingRef = useRef(false);
   const userInteractedRef = useRef(false);
+  const stopListeningRef = useRef<(() => void) | null>(null);
 
   // Clap detection refs
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -108,8 +110,13 @@ export function VoiceProvider({ children, userId, userName }: { children: React.
   }, [userId]);
 
   const getGreeting = useCallback(() => {
-    const name = userName || 'Usuario';
-    return `Hola ${name}, ¿cómo puedo ayudarte?`;
+    const name = userName || localStorage.getItem('jarvis_user_name') || 'Usuario';
+    const hour = new Date().getHours();
+    let saludo = 'Hola';
+    if (hour < 12) saludo = 'Buenos días';
+    else if (hour < 19) saludo = 'Buenas tardes';
+    else saludo = 'Buenas noches';
+    return `${saludo} ${name}, ¿en qué puedo ayudarte hoy?`;
   }, [userName]);
 
   // Check browser support (just needs getUserMedia + fetch for Groq)
@@ -140,6 +147,7 @@ export function VoiceProvider({ children, userId, userName }: { children: React.
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
         body: JSON.stringify({ audio: base64, lang: langCode }),
+        signal: AbortSignal.timeout(10000),
       });
 
       if (!response.ok) {
@@ -154,6 +162,10 @@ export function VoiceProvider({ children, userId, userName }: { children: React.
       return '';
     }
   }, [config.lang]);
+
+  // Browser SpeechRecognition (Web Speech API) — fallback gratuito sin API key
+  const browserRecognitionRef = useRef<any>(null);
+  const useBrowserSttRef = useRef(false);
 
   // Process transcription text: detect wake word or forward commands
   const processTranscription = useCallback(async (text: string) => {
@@ -186,12 +198,72 @@ export function VoiceProvider({ children, userId, userName }: { children: React.
         onCommandRef.current(text);
       }
     }
-  }, [config.wakeWord]);
+  }, [config.wakeWord, getGreeting]);
 
-  // Recording loop: capture audio chunks and send to STT
+  const startBrowserRecognition = useCallback(() => {
+    const SpeechAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechAPI) return false;
+
+    try {
+      const recognition = new SpeechAPI();
+      recognition.lang = config.lang || 'es-ES';
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event: any) => {
+        let finalText = '';
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalText += transcript;
+          } else {
+            interim += transcript;
+          }
+        }
+        if (interim) setInterimTranscript(interim);
+        if (finalText.trim()) {
+          setInterimTranscript('');
+          processTranscription(finalText);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Browser STT error:', event.error);
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+          useBrowserSttRef.current = false;
+          stopListeningRef.current?.();
+        }
+      };
+
+      recognition.onend = () => {
+        // Reiniciar si sigue escuchando
+        if (useBrowserSttRef.current && isRecordingRef.current) {
+          try { recognition.start(); } catch { /* ya iniciado */ }
+        }
+      };
+
+      recognition.start();
+      browserRecognitionRef.current = recognition;
+      useBrowserSttRef.current = true;
+      return true;
+    } catch (err) {
+      console.warn('Failed to start browser recognition:', err);
+      return false;
+    }
+  }, [config.lang, processTranscription]);
+
+  // Recording loop: prefer browser SpeechRecognition; fallback a MediaRecorder + Groq
   const startRecordingLoop = useCallback(async () => {
     if (isRecordingRef.current) return;
 
+    // 1) Intentar STT del navegador (gratis, sin API key)
+    if (startBrowserRecognition()) {
+      isRecordingRef.current = true;
+      return;
+    }
+
+    // 2) Fallback: MediaRecorder + Groq STT
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       audioStreamRef.current = stream;
@@ -242,10 +314,16 @@ export function VoiceProvider({ children, userId, userName }: { children: React.
       isRecordingRef.current = false;
       setIsListening(false);
     }
-  }, [sendAudioToSTT, processTranscription]);
+  }, [sendAudioToSTT, processTranscription, startBrowserRecognition]);
 
   const stopRecordingLoop = useCallback(() => {
     isRecordingRef.current = false;
+    useBrowserSttRef.current = false;
+
+    if (browserRecognitionRef.current) {
+      try { browserRecognitionRef.current.stop(); } catch {}
+      browserRecognitionRef.current = null;
+    }
 
     if (sttIntervalRef.current) {
       clearInterval(sttIntervalRef.current);
@@ -278,6 +356,11 @@ export function VoiceProvider({ children, userId, userName }: { children: React.
     }
   }, [stopRecordingLoop]);
 
+  // Exponer stopListening para callbacks que se declaran antes (browser STT)
+  useEffect(() => {
+    stopListeningRef.current = stopListening;
+  }, [stopListening]);
+
   const startListening = useCallback(() => {
     if (!supported || !config.enabled) return;
     stopListening();
@@ -292,24 +375,50 @@ export function VoiceProvider({ children, userId, userName }: { children: React.
       currentAudioRef.current.src = '';
       currentAudioRef.current = null;
     }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
     setIsSpeaking(false);
   }, []);
 
-  // Groq TTS: fetch audio from server and play via Audio element
-  const speak = useCallback(async (text: string, onBoundary?: (charIndex: number) => void): Promise<void> => {
-      const ttsCsrfRes = await fetch('/api/csrf-token');
-      const { csrfToken: ttsCsrfToken } = await ttsCsrfRes.json();
-
-      return new Promise(async (resolve) => {
-      if (!text.trim() || !supported) {
+  // Browser TTS fallback (speechSynthesis) — free, sin API key
+  const speakWithBrowser = useCallback((text: string): Promise<void> => {
+    return new Promise((resolve) => {
+      if (!('speechSynthesis' in window)) {
         resolve();
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = config.lang || 'es-ES';
+      utterance.rate = config.rate || 1;
+      utterance.pitch = config.pitch || 1;
+      // Prefer Spanish voice
+      const voices = window.speechSynthesis.getVoices();
+      const spanish = voices.find(v => v.lang?.toLowerCase().startsWith('es'));
+      if (spanish) utterance.voice = spanish;
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        resolve();
+      };
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        resolve();
+      };
+      setIsSpeaking(true);
+      window.speechSynthesis.speak(utterance);
+    });
+  }, [config.lang, config.rate, config.pitch]);
+
+  // Groq TTS: fetch audio from server and play via Audio element; fallback al navegador
+  const speak = useCallback(async (text: string, onBoundary?: (charIndex: number) => void): Promise<void> => {
+      if (!text.trim() || !supported) {
         return;
       }
 
       // Evita el autoplay bloqueado por los navegadores: no reproducir hasta
       // que el usuario haya hecho al menos un clic previo.
       if (!userInteractedRef.current) {
-        resolve();
         return;
       }
 
@@ -320,78 +429,79 @@ export function VoiceProvider({ children, userId, userName }: { children: React.
         currentAudioRef.current.pause();
         currentAudioRef.current.src = '';
       }
+      window.speechSynthesis?.cancel();
 
       const voice = config.voiceURI || 'hannah';
       const speed = config.rate;
 
       setIsSpeaking(true);
 
-      const response = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'csrf-token': ttsCsrfToken },
-        body: JSON.stringify({ text, voice, speed }),
-      })
-        .then(async (response) => {
-          if (!response.ok) {
-            console.warn('TTS request failed:', response.status);
-            setIsSpeaking(false);
-            resolve();
-            return;
-          }
+      try {
+        const ttsCsrfRes = await fetch('/api/csrf-token');
+        const { csrfToken: ttsCsrfToken } = await ttsCsrfRes.json();
 
-          const audioBlob = await response.blob();
-          const audioUrl = URL.createObjectURL(audioBlob);
-          const audio = new Audio(audioUrl);
-          currentAudioRef.current = audio;
-
-          // Approximate word boundary events using duration estimation
-          if (onBoundary) {
-            const words = text.split(/\s+/);
-            const totalWords = words.length;
-            let charIndex = 0;
-            const boundaryInterval = setInterval(() => {
-              if (!currentAudioRef.current || currentAudioRef.current.paused) {
-                clearInterval(boundaryInterval);
-                return;
-              }
-              const progress = currentAudioRef.current.currentTime / (currentAudioRef.current.duration || 1);
-              const currentWordIdx = Math.floor(progress * totalWords);
-              for (let i = 0; i <= currentWordIdx && i < words.length; i++) {
-                if (charIndex < text.length) {
-                  onBoundary(charIndex);
-                  charIndex += words[i].length + 1;
-                }
-              }
-            }, 200);
-          }
-
-          audio.onended = () => {
-            setIsSpeaking(false);
-            URL.revokeObjectURL(audioUrl);
-            currentAudioRef.current = null;
-            if (!stopSpeakingRef.current) resolve();
-          };
-
-          audio.onerror = () => {
-            setIsSpeaking(false);
-            URL.revokeObjectURL(audioUrl);
-            currentAudioRef.current = null;
-            resolve();
-          };
-
-          audio.play().catch((err) => {
-            console.warn('Audio play failed:', err);
-            setIsSpeaking(false);
-            resolve();
-          });
-        })
-        .catch((err) => {
-          console.warn('TTS fetch error:', err);
-          setIsSpeaking(false);
-          resolve();
+        const response = await fetch('/api/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'csrf-token': ttsCsrfToken },
+          body: JSON.stringify({ text, voice, speed }),
         });
-    });
-  }, [supported, config.voiceURI, config.rate]);
+
+        if (!response.ok) {
+          console.warn('TTS request failed, using browser fallback:', response.status);
+          await speakWithBrowser(text);
+          return;
+        }
+
+        const audioBlob = await response.blob();
+        // Si el servidor devolvió JSON de error en vez de audio, usar fallback
+        if (audioBlob.type.includes('application/json')) {
+          await speakWithBrowser(text);
+          return;
+        }
+        const audioUrl = URL.createObjectURL(audioBlob);
+        const audio = new Audio(audioUrl);
+        currentAudioRef.current = audio;
+
+        // Approximate word boundary events using duration estimation
+        if (onBoundary) {
+          const words = text.split(/\s+/);
+          const totalWords = words.length;
+          let charIndex = 0;
+          const boundaryInterval = setInterval(() => {
+            if (!currentAudioRef.current || currentAudioRef.current.paused) {
+              clearInterval(boundaryInterval);
+              return;
+            }
+            const progress = currentAudioRef.current.currentTime / (currentAudioRef.current.duration || 1);
+            const currentWordIdx = Math.floor(progress * totalWords);
+            for (let i = 0; i <= currentWordIdx && i < words.length; i++) {
+              if (charIndex < text.length) {
+                onBoundary(charIndex);
+                charIndex += words[i].length + 1;
+              }
+            }
+          }, 200);
+        }
+
+        audio.onended = () => {
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+          currentAudioRef.current = null;
+        };
+
+        audio.onerror = () => {
+          setIsSpeaking(false);
+          URL.revokeObjectURL(audioUrl);
+          currentAudioRef.current = null;
+          speakWithBrowser(text);
+        };
+
+        await audio.play();
+      } catch (err) {
+        console.warn('TTS fetch error, using browser fallback:', err);
+        await speakWithBrowser(text);
+      }
+  }, [supported, config.voiceURI, config.rate, speakWithBrowser]);
 
   // Clap detection
   const clapWakeHandlerRef = useRef<(() => void) | null>(null);
@@ -522,6 +632,7 @@ export function VoiceProvider({ children, userId, userName }: { children: React.
     stopSpeaking,
     setOnCommand,
     markInteracted,
+    getGreeting,
     supported,
     clapSupported,
     isClapListening,

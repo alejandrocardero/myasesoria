@@ -166,7 +166,27 @@ export function useVoiceCommands(actions: VoiceCommandActions) {
       return;
     }
 
-    await speak('No entendí el comando. Di "¿Qué puedes hacer?" para ver los comandos disponibles.');
+    // Fallback: enviar la pregunta a la IA del app (Abogado Amigo / chat)
+    try {
+      const csrfRes = await fetch('/api/csrf-token');
+      const { csrfToken } = await csrfRes.json();
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
+        body: JSON.stringify({ message: command, history: (actionsRef.current.chatHistory || []).slice(-10) }),
+        signal: AbortSignal.timeout(30000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.text) {
+          await speak(data.text);
+          return;
+        }
+      }
+      await speak('No pude procesar tu pregunta en este momento. Inténtalo de nuevo.');
+    } catch {
+      await speak('No pude conectarme con la IA. Inténtalo de nuevo en unos segundos.');
+    }
 
   }, [speak, stopSpeaking, isSpeaking, config]);
 

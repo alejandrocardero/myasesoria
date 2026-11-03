@@ -202,9 +202,12 @@ function AppContent() {
     setChatHistory(prev => [...prev, userMsg]);
 
     try {
+      const csrfRes = await fetch('/api/csrf-token');
+      const { csrfToken } = await csrfRes.json();
+
       const response = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'csrf-token': csrfToken },
         body: JSON.stringify({ message: text, history: chatHistory })
       });
 
