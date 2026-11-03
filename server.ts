@@ -467,7 +467,16 @@ Para cada respuesta:
         { role: 'user', content: message }
       ];
 
-      const response = await ai.chat(messages, { systemPrompt });
+      let response: string;
+      try {
+        response = await ai.chat(messages, { systemPrompt });
+      } catch (primaryErr) {
+        // Reintentar: re-inicializar Ollama (el fallo inicial suele ser DNS/transitorio)
+        console.warn(`Chat primary provider failed (${currentProvider}), reinitializing:`, primaryErr instanceof Error ? primaryErr.message : primaryErr);
+        const recovered = await initProvider('ollama') || await initProvider(currentProvider);
+        if (!recovered || !ai) throw primaryErr;
+        response = await ai.chat(messages, { systemPrompt });
+      }
       res.json({ text: response });
     } catch (err: any) {
       console.error("Error in Legal Assistant Chat route:", err);
