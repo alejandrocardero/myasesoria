@@ -302,16 +302,17 @@ async function startServer() {
     if (prov === 'ollama') {
       const ollamaHost = process.env.OLLAMA_HOST || 'http://localhost:11434';
       const ollamaModel = process.env.OLLAMA_MODEL || 'gpt-oss:20b-cloud';
+      ai = new OllamaClient(ollamaHost, ollamaModel);
+      currentProvider = 'ollama';
+      // Verificación optimista: la red externa (ollama.com) es intermitente,
+      // así que un fallo aquí no descarta al proveedor — el chat reintenta por petición.
       try {
-        ai = new OllamaClient(ollamaHost, ollamaModel);
-        await ai.chat([{role: 'user', content: 'test'}]);
-        currentProvider = 'ollama';
+        await ai.chat([{ role: 'user', content: 'test' }]);
         console.log(`✅ Ollama AI client initialized (${ollamaModel}).`);
-        return true;
       } catch (err) {
-        console.warn(`⚠️ Ollama connection failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
-        return false;
+        console.warn(`⚠️ Ollama initialized (${ollamaModel}) — verificación diferida: ${err instanceof Error ? err.message : 'error'}`);
       }
+      return true;
     }
 
     return false;
@@ -468,16 +469,27 @@ Para cada respuesta:
       ];
 
       let response: string;
-      try {
-        response = await ai.chat(messages, { systemPrompt });
-      } catch (primaryErr) {
-        // Reintentar: re-inicializar Ollama (el fallo inicial suele ser DNS/transitorio)
-        console.warn(`Chat primary provider failed (${currentProvider}), reinitializing:`, primaryErr instanceof Error ? primaryErr.message : primaryErr);
-        const recovered = await initProvider('ollama') || await initProvider(currentProvider);
-        if (!recovered || !ai) throw primaryErr;
-        response = await ai.chat(messages, { systemPrompt });
+      let lastErr: unknown;
+      // Reintentos con espera: la conectividad externa (ollama.com) es intermitente
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          if (attempt > 0) {
+            await new Promise(r => setTimeout(r, 1000 * attempt));
+            await initProvider('ollama');
+            if (!ai) throw lastErr;
+          }
+          response = await ai.chat(messages, { systemPrompt });
+          break;
+        } catch (err) {
+          lastErr = err;
+          console.warn(`Chat attempt ${attempt + 1} failed (${currentProvider}):`, err instanceof Error ? err.message : err);
+          if (attempt === 2) {
+            console.error("Error in Legal Assistant Chat route:", err);
+            return res.status(500).json({ error: "Fallo al comunicar con la Inteligencia Artificial." });
+          }
+        }
       }
-      res.json({ text: response });
+      res.json({ text: response! });
     } catch (err: any) {
       console.error("Error in Legal Assistant Chat route:", err);
       res.status(500).json({ error: "Fallo al comunicar con la Inteligencia Artificial." });
